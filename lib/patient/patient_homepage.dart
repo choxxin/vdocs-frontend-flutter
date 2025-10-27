@@ -239,17 +239,50 @@ class _PatientHomePageState extends State<PatientHomePage> {
             children: [
               GestureDetector(
                 onTap: () => _showProfileDialog(),
-                child: CircleAvatar(
-                  radius: 30,
-                  backgroundColor: AppTheme.white.withOpacity(0.2),
-                  backgroundImage: const NetworkImage(
-                    'https://images.unsplash.com/photo-1494790108755-2616b69ee45c?w=150&h=150&fit=crop&crop=face', // Default girl avatar
+                child: Container(
+                  width: 60,
+                  height: 60,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: AppTheme.white,
+                    border: Border.all(color: AppTheme.white, width: 2),
                   ),
-                  onBackgroundImageError: (_, __) {},
-                  child: Container(
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(color: AppTheme.white, width: 2),
+                  child: ClipOval(
+                    child: Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        // Background
+                        Container(
+                          color: AppTheme.white,
+                        ),
+                        // Head (circle)
+                        Positioned(
+                          top: 12,
+                          child: Container(
+                            width: 20,
+                            height: 20,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: AppTheme.primaryBlue.withOpacity(0.7),
+                            ),
+                          ),
+                        ),
+                        // Shoulders (semi-circle)
+                        Positioned(
+                          bottom: 0,
+                          child: Container(
+                            width: 50,
+                            height: 35,
+                            decoration: BoxDecoration(
+                              color: AppTheme.primaryBlue.withOpacity(0.7),
+                              borderRadius: const BorderRadius.only(
+                                topLeft: Radius.circular(50),
+                                topRight: Radius.circular(50),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
@@ -720,17 +753,50 @@ class _PatientHomePageState extends State<PatientHomePage> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 // Profile Avatar
-                CircleAvatar(
-                  radius: 50,
-                  backgroundColor: AppTheme.primaryBlue.withOpacity(0.1),
-                  backgroundImage: const NetworkImage(
-                    'https://images.unsplash.com/photo-1494790108755-2616b69ee45c?w=150&h=150&fit=crop&crop=face',
+                Container(
+                  width: 100,
+                  height: 100,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: AppTheme.primaryBlue.withOpacity(0.1),
+                    border: Border.all(color: AppTheme.primaryBlue, width: 3),
                   ),
-                  onBackgroundImageError: (_, __) {},
-                  child: Container(
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(color: AppTheme.primaryBlue, width: 3),
+                  child: ClipOval(
+                    child: Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        // Background
+                        Container(
+                          color: AppTheme.primaryBlue.withOpacity(0.1),
+                        ),
+                        // Head (circle)
+                        Positioned(
+                          top: 20,
+                          child: Container(
+                            width: 35,
+                            height: 35,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: AppTheme.primaryBlue.withOpacity(0.7),
+                            ),
+                          ),
+                        ),
+                        // Shoulders (semi-circle)
+                        Positioned(
+                          bottom: 0,
+                          child: Container(
+                            width: 80,
+                            height: 55,
+                            decoration: BoxDecoration(
+                              color: AppTheme.primaryBlue.withOpacity(0.7),
+                              borderRadius: const BorderRadius.only(
+                                topLeft: Radius.circular(80),
+                                topRight: Radius.circular(80),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
@@ -1120,17 +1186,50 @@ class _PatientHomePageState extends State<PatientHomePage> {
             ),
             child: Column(
               children: [
-                CircleAvatar(
-                  radius: 50,
-                  backgroundColor: AppTheme.white.withOpacity(0.2),
-                  backgroundImage: const NetworkImage(
-                    'https://images.unsplash.com/photo-1494790108755-2616b69ee45c?w=150&h=150&fit=crop&crop=face',
+                Container(
+                  width: 100,
+                  height: 100,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: AppTheme.white.withOpacity(0.2),
+                    border: Border.all(color: AppTheme.white, width: 3),
                   ),
-                  onBackgroundImageError: (_, __) {},
-                  child: Container(
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(color: AppTheme.white, width: 3),
+                  child: ClipOval(
+                    child: Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        // Background
+                        Container(
+                          color: AppTheme.white.withOpacity(0.2),
+                        ),
+                        // Head (circle)
+                        Positioned(
+                          top: 20,
+                          child: Container(
+                            width: 35,
+                            height: 35,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: AppTheme.white.withOpacity(0.8),
+                            ),
+                          ),
+                        ),
+                        // Shoulders (semi-circle)
+                        Positioned(
+                          bottom: 0,
+                          child: Container(
+                            width: 80,
+                            height: 55,
+                            decoration: BoxDecoration(
+                              color: AppTheme.white.withOpacity(0.8),
+                              borderRadius: const BorderRadius.only(
+                                topLeft: Radius.circular(80),
+                                topRight: Radius.circular(80),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
