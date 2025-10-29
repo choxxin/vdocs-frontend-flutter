@@ -16,10 +16,12 @@ class _PatientLoginPageState extends State<PatientLoginPage> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _otpController = TextEditingController();
   late final Dio _dio;
   String? _errorMessage;
   bool _isLoading = false;
   bool _obscurePassword = true;
+  bool _showOtpField = false;
 
   @override
   void initState() {
@@ -75,10 +77,17 @@ class _PatientLoginPageState extends State<PatientLoginPage> {
       );
 
       if (response.statusCode == 200) {
-        Navigator.pushReplacementNamed(
-          context,
-          '/patient-home',
-          arguments: _dio,
+        // Email/password correct, OTP sent - show OTP field
+        setState(() {
+          _showOtpField = true;
+          _isLoading = false;
+        });
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(response.data?.toString() ?? 'OTP sent successfully to ${_emailController.text.trim()}'),
+            backgroundColor: AppTheme.success,
+          ),
         );
       } else {
         setState(() {
@@ -88,6 +97,51 @@ class _PatientLoginPageState extends State<PatientLoginPage> {
     } catch (e) {
       setState(() {
         _errorMessage = "Login failed. Please check your connection and try again.";
+      });
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _verifyOtp() async {
+    if (_otpController.text.trim().isEmpty) {
+      setState(() {
+        _errorMessage = 'Please enter the OTP sent to your email.';
+      });
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final response = await _dio.post(
+        "http://localhost:8080/api/patient/auth/verify-email",
+        data: {
+          "email": _emailController.text.trim(),
+          "twoFactorCode": _otpController.text.trim(),
+        },
+      );
+
+      if (response.statusCode == 200) {
+        // OTP verified, cookies saved same way as before
+        Navigator.pushReplacementNamed(
+          context,
+          '/patient-home',
+          arguments: _dio,
+        );
+      } else {
+        setState(() {
+          _errorMessage = "Invalid OTP. Please try again.";
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _errorMessage = "OTP verification failed. Please try again.";
       });
     } finally {
       setState(() {
@@ -197,16 +251,36 @@ class _PatientLoginPageState extends State<PatientLoginPage> {
                             
                             const SizedBox(height: 12),
                             
-                            // Forgot Password
-                            Align(
-                              alignment: Alignment.centerRight,
-                              child: TextButton(
-                                onPressed: () {
-                                  // TODO: Implement forgot password
+                            // OTP Field (shown after email/password verification)
+                            if (_showOtpField) ...[
+                              const SizedBox(height: 8),
+                              CustomTextField(
+                                label: 'OTP Code',
+                                hint: 'Enter the OTP sent to your email',
+                                controller: _otpController,
+                                prefixIcon: Iconsax.message,
+                                keyboardType: TextInputType.number,
+                                validator: (value) {
+                                  if (value == null || value.isEmpty) {
+                                    return 'Please enter the OTP';
+                                  }
+                                  return null;
                                 },
-                                child: const Text('Forgot Password?'),
                               ),
-                            ),
+                              const SizedBox(height: 12),
+                            ],
+                            
+                            // Forgot Password
+                            if (!_showOtpField)
+                              Align(
+                                alignment: Alignment.centerRight,
+                                child: TextButton(
+                                  onPressed: () {
+                                    // TODO: Implement forgot password
+                                  },
+                                  child: const Text('Forgot Password?'),
+                                ),
+                              ),
                             
                             const SizedBox(height: 24),
                             
@@ -242,11 +316,11 @@ class _PatientLoginPageState extends State<PatientLoginPage> {
                                 ),
                               ),
                             
-                            // Login Button
+                            // Login/Verify Button
                             SizedBox(
                               height: 56,
                               child: ElevatedButton(
-                                onPressed: _isLoading ? null : _login,
+                                onPressed: _isLoading ? null : (_showOtpField ? _verifyOtp : _login),
                                 child: _isLoading
                                     ? const SpinKitThreeBounce(
                                         color: AppTheme.white,
@@ -255,9 +329,9 @@ class _PatientLoginPageState extends State<PatientLoginPage> {
                                     : Row(
                                         mainAxisAlignment: MainAxisAlignment.center,
                                         children: [
-                                          const Icon(Iconsax.login),
+                                          Icon(_showOtpField ? Iconsax.shield_tick : Iconsax.login),
                                           const SizedBox(width: 8),
-                                          const Text('Sign In'),
+                                          Text(_showOtpField ? 'Verify OTP' : 'Sign In'),
                                         ],
                                       ),
                               ),
@@ -307,6 +381,7 @@ class _PatientLoginPageState extends State<PatientLoginPage> {
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
+    _otpController.dispose();
     super.dispose();
   }
 }
