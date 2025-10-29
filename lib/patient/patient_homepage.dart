@@ -142,7 +142,7 @@ class _PatientHomePageState extends State<PatientHomePage> {
       });
 
       final response = await _dio.get(
-        "http://localhost:8080/api/patient/auth/me",
+        "http://10.0.2.2:8080/api/patient/auth/me",
       );
 
       if (response.statusCode == 200) {

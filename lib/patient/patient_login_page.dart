@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:dio_cookie_manager/dio_cookie_manager.dart';
+import 'package:cookie_jar/cookie_jar.dart';
 import 'package:iconsax/iconsax.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
 import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
@@ -18,6 +20,7 @@ class _PatientLoginPageState extends State<PatientLoginPage> {
   final _passwordController = TextEditingController();
   final _otpController = TextEditingController();
   late final Dio _dio;
+  late final CookieJar _cookieJar;
   String? _errorMessage;
   bool _isLoading = false;
   bool _obscurePassword = true;
@@ -31,7 +34,12 @@ class _PatientLoginPageState extends State<PatientLoginPage> {
 
   void _initializeDio() {
     _dio = Dio();
+    
+    // For Android/iOS - use CookieManager to persist cookies
+    _cookieJar = CookieJar();
+    _dio.interceptors.add(CookieManager(_cookieJar));
 
+    // For web - enable credentials
     if (kIsWeb) {
       _dio.options.extra['withCredentials'] = true;
     }
@@ -69,7 +77,7 @@ class _PatientLoginPageState extends State<PatientLoginPage> {
 
     try {
       final response = await _dio.post(
-        "http://localhost:8080/api/patient/auth/login",
+        "http://10.0.2.2:8080/api/patient/auth/login",
         data: {
           "email": _emailController.text.trim(),
           "password": _passwordController.text,
@@ -120,7 +128,7 @@ class _PatientLoginPageState extends State<PatientLoginPage> {
 
     try {
       final response = await _dio.post(
-        "http://localhost:8080/api/patient/auth/verify-email",
+        "http://10.0.2.2:8080/api/patient/auth/verify-email",
         data: {
           "email": _emailController.text.trim(),
           "twoFactorCode": _otpController.text.trim(),

@@ -37,7 +37,7 @@ class _ClinicLoginPageState extends State<ClinicLoginPage> {
 
     try {
       final response = await _dio.post(
-        "http://localhost:8080/api/clinic/auth/login",
+        "http://10.0.2.2:8080/api/clinic/auth/login",
         data: {
           "email": _emailController.text,
           "password": _passwordController.text,

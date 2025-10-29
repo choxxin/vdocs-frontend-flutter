@@ -35,7 +35,7 @@ class _ClinicHomePageState extends State<ClinicHomePage> {
         _errorMessage = null;
       });
 
-      final response = await _dio.get("http://localhost:8080/api/clinic/auth/me");
+      final response = await _dio.get("http://10.0.2.2:8080/api/clinic/auth/me");
 
       if (response.statusCode == 200) {
         setState(() {
@@ -58,7 +58,7 @@ class _ClinicHomePageState extends State<ClinicHomePage> {
 
   Future<void> _fetchCompletedAppointments() async {
     try {
-      final response = await _dio.get("http://localhost:8080/api/clinic/appointments/completed");
+      final response = await _dio.get("http://10.0.2.2:8080/api/clinic/appointments/completed");
 
       if (response.statusCode == 200) {
         final List<dynamic> appointments = response.data;
