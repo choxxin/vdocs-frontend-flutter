@@ -57,11 +57,28 @@ class _ReportUploadPageState extends State<ReportUploadPage> {
     });
 
     try {
-      final formData = FormData.fromMap({
-        "file": MultipartFile.fromBytes(
+      MultipartFile file;
+      
+      // On web, use bytes; on mobile, use file path
+      if (kIsWeb && _selectedFile!.bytes != null) {
+        file = MultipartFile.fromBytes(
           _selectedFile!.bytes!,
           filename: _selectedFile!.name,
-        ),
+        );
+      } else if (_selectedFile!.path != null) {
+        file = await MultipartFile.fromFile(
+          _selectedFile!.path!,
+          filename: _selectedFile!.name,
+        );
+      } else {
+        setState(() {
+          _message = "Could not access the selected file.";
+        });
+        return;
+      }
+
+      final formData = FormData.fromMap({
+        "file": file,
         "patientId": _patientId,
       });
 
