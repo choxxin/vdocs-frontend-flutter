@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:iconsax/iconsax.dart';
 import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
 import 'package:gap/gap.dart';
@@ -924,190 +923,20 @@ class _PatientHomePageState extends State<PatientHomePage> {
 
   void _showEditProfileDialog() {
     if (_patientData == null) return;
-    final parentContext = context; // capture parent context for SnackBars and Navigator actions
 
-    final TextEditingController firstNameController = TextEditingController(text: _patientData!['firstName']?.toString() ?? '');
-    final TextEditingController lastNameController = TextEditingController(text: _patientData!['lastName']?.toString() ?? '');
-    final TextEditingController ageController = TextEditingController(text: _patientData!['age']?.toString() ?? '');
-    final TextEditingController genderController = TextEditingController(text: _patientData!['gender']?.toString() ?? '');
-    final TextEditingController phoneController = TextEditingController(text: _patientData!['phoneNumber']?.toString() ?? '');
-    final TextEditingController addressController = TextEditingController(text: _patientData!['address']?.toString() ?? '');
-    final TextEditingController medicalHistoryController = TextEditingController(text: _patientData!['medicalHistory']?.toString() ?? '');
-    final TextEditingController currentMedicationsController = TextEditingController(text: _patientData!['currentMedications']?.toString() ?? '');
-    final TextEditingController allergyInputController = TextEditingController();
-
-    List<String> allergies = [];
-    try {
-      if (_patientData!['allergies'] != null) {
-        final raw = _patientData!['allergies'];
-        if (raw is List) {
-          allergies = raw.map((e) {
-            if (e is Map && e.containsKey('allergyName')) return e['allergyName']?.toString() ?? '';
-            return e.toString();
-          }).where((s) => s.isNotEmpty).toList();
-        }
-      }
-    } catch (_) {}
-
-
-    showDialog(
-      context: parentContext,
-      builder: (BuildContext dialogContext) {
-        bool isSaving = false;
-
-        return StatefulBuilder(
-          builder: (dialogContext, dialogSetState) {
-            Future<void> saveProfile() async {
-              // mark saving in dialog
-              dialogSetState(() => isSaving = true);
-              try {
-                final payload = {
-                  'firstName': firstNameController.text.trim(),
-                  'lastName': lastNameController.text.trim(),
-                  'age': int.tryParse(ageController.text.trim()) ?? _patientData!['age'],
-                  'gender': genderController.text.trim(),
-                  'phoneNumber': phoneController.text.trim(),
-                  'address': addressController.text.trim(),
-                  'medicalHistory': medicalHistoryController.text.trim(),
-                  'currentMedications': currentMedicationsController.text.trim(),
-                  'allergies': allergies.map((a) => {'allergyName': a}).toList(),
-                };
-
-                // Use same base host as fetch; when running on emulator use 10.0.2.2
-                final updateUrl = 'http://10.0.2.2:8080/api/patient/auth/update';
-
-                final response = await _dio.post(updateUrl, data: payload);
-                if (response.statusCode == 200 || response.statusCode == 201) {
-                  // Update outer state patient data
-                  if (mounted) {
-                    setState(() {
-                      _patientData = {
-                        ...?_patientData,
-                        ...payload,
-                      };
-                    });
-                  }
-
-                  // close dialog
-                  Navigator.of(dialogContext).pop();
-
-                  // show confirmation snackbar on parent scaffold
-                  if (mounted) {
-                    ScaffoldMessenger.of(parentContext).showSnackBar(
-                      const SnackBar(content: Text('Profile updated successfully')),
-                    );
-                  }
-                } else {
-                  // show error and allow retry
-                  dialogSetState(() => isSaving = false);
-                  if (mounted) ScaffoldMessenger.of(parentContext).showSnackBar(
-                    SnackBar(content: Text('Failed to update profile: ${response.statusCode}')),
-                  );
-                }
-              } catch (e) {
-                dialogSetState(() => isSaving = false);
-                if (mounted) ScaffoldMessenger.of(parentContext).showSnackBar(
-                  SnackBar(content: Text('Error updating profile: $e')),
-                );
-              }
-            }
-
-            return Dialog(
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text('Edit Profile', style: Theme.of(dialogContext).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold)),
-                    const Gap(12),
-                    TextField(controller: firstNameController, decoration: const InputDecoration(labelText: 'First name')),
-                    const Gap(8),
-                    TextField(controller: lastNameController, decoration: const InputDecoration(labelText: 'Last name')),
-                    const Gap(8),
-                    TextField(controller: ageController, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Age')),
-                    const Gap(8),
-                    TextField(controller: genderController, decoration: const InputDecoration(labelText: 'Gender')),
-                    const Gap(8),
-                    TextField(controller: phoneController, decoration: const InputDecoration(labelText: 'Phone')),
-                    const Gap(8),
-                    TextField(controller: addressController, decoration: const InputDecoration(labelText: 'Address')),
-                    const Gap(8),
-                    TextField(controller: medicalHistoryController, decoration: const InputDecoration(labelText: 'Medical history')),
-                    const Gap(8),
-                    TextField(controller: currentMedicationsController, decoration: const InputDecoration(labelText: 'Current medications')),
-                    const Gap(12),
-                    // Allergies input
-                    Align(alignment: Alignment.centerLeft, child: Text('Allergies', style: Theme.of(dialogContext).textTheme.bodyMedium)),
-                    const Gap(8),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: allergies.map((a) => Chip(
-                        label: Text(a),
-                        onDeleted: () {
-                          dialogSetState(() => allergies.remove(a));
-                        },
-                      )).toList(),
-                    ),
-                    const Gap(8),
-                    Row(
-                      children: [
-                        Expanded(child: TextField(controller: allergyInputController, decoration: const InputDecoration(hintText: 'Add allergy'))),
-                        const Gap(8),
-                        ElevatedButton(
-                          onPressed: () {
-                            final val = allergyInputController.text.trim();
-                            if (val.isNotEmpty) {
-                              dialogSetState(() {
-                                allergies.add(val);
-                                allergyInputController.clear();
-                              });
-                            }
-                          },
-                          child: const Text('Add'),
-                        ),
-                      ],
-                    ),
-                    const Gap(16),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: OutlinedButton(
-                            onPressed: isSaving ? null : () {
-                              Navigator.of(dialogContext).pop();
-                            },
-                            child: const Text('Cancel'),
-                          ),
-                        ),
-                        const Gap(12),
-                        Expanded(
-                          child: ElevatedButton(
-                            onPressed: isSaving ? null : saveProfile,
-                            child: isSaving ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)) : const Text('Save'),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            );
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => _EditProfileScreen(
+          dio: _dio,
+          patientData: _patientData!,
+          onProfileUpdated: (updatedData) {
+            setState(() {
+              _patientData = updatedData;
+            });
           },
-        );
-      },
-    ).then((_) {
-      // dispose controllers when dialog closes
-      firstNameController.dispose();
-      lastNameController.dispose();
-      ageController.dispose();
-      genderController.dispose();
-      phoneController.dispose();
-      addressController.dispose();
-      medicalHistoryController.dispose();
-      currentMedicationsController.dispose();
-      allergyInputController.dispose();
-    });
+        ),
+      ),
+    );
   }
 
   Widget _buildProfileRow(String label, String value, IconData icon) {
@@ -1670,6 +1499,303 @@ class _PatientHomePageState extends State<PatientHomePage> {
                 fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
               ),
             ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// Simplified Edit Profile Screen as a separate widget
+class _EditProfileScreen extends StatefulWidget {
+  final Dio dio;
+  final Map<String, dynamic> patientData;
+  final Function(Map<String, dynamic>) onProfileUpdated;
+
+  const _EditProfileScreen({
+    required this.dio,
+    required this.patientData,
+    required this.onProfileUpdated,
+  });
+
+  @override
+  State<_EditProfileScreen> createState() => _EditProfileScreenState();
+}
+
+class _EditProfileScreenState extends State<_EditProfileScreen> {
+  late TextEditingController firstNameController;
+  late TextEditingController lastNameController;
+  late TextEditingController ageController;
+  late TextEditingController genderController;
+  late TextEditingController phoneController;
+  late TextEditingController addressController;
+  late TextEditingController medicalHistoryController;
+  late TextEditingController currentMedicationsController;
+  late TextEditingController allergyInputController;
+  
+  List<String> allergies = [];
+  bool isSaving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    
+    firstNameController = TextEditingController(text: widget.patientData['firstName']?.toString() ?? '');
+    lastNameController = TextEditingController(text: widget.patientData['lastName']?.toString() ?? '');
+    ageController = TextEditingController(text: widget.patientData['age']?.toString() ?? '');
+    genderController = TextEditingController(text: widget.patientData['gender']?.toString() ?? '');
+    phoneController = TextEditingController(text: widget.patientData['phoneNumber']?.toString() ?? '');
+    addressController = TextEditingController(text: widget.patientData['address']?.toString() ?? '');
+    medicalHistoryController = TextEditingController(text: widget.patientData['medicalHistory']?.toString() ?? '');
+    currentMedicationsController = TextEditingController(text: widget.patientData['currentMedications']?.toString() ?? '');
+    allergyInputController = TextEditingController();
+    
+    // Parse allergies
+    try {
+      if (widget.patientData['allergies'] != null) {
+        final raw = widget.patientData['allergies'];
+        if (raw is List) {
+          allergies = raw.map((e) {
+            if (e is Map && e.containsKey('allergyName')) return e['allergyName']?.toString() ?? '';
+            return e.toString();
+          }).where((s) => s.isNotEmpty).toList();
+        }
+      }
+    } catch (_) {}
+  }
+
+  @override
+  void dispose() {
+    firstNameController.dispose();
+    lastNameController.dispose();
+    ageController.dispose();
+    genderController.dispose();
+    phoneController.dispose();
+    addressController.dispose();
+    medicalHistoryController.dispose();
+    currentMedicationsController.dispose();
+    allergyInputController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _saveProfile() async {
+    setState(() => isSaving = true);
+    
+    try {
+      final payload = {
+        'firstName': firstNameController.text.trim(),
+        'lastName': lastNameController.text.trim(),
+        'age': int.tryParse(ageController.text.trim()) ?? widget.patientData['age'],
+        'gender': genderController.text.trim(),
+        'phoneNumber': phoneController.text.trim(),
+        'address': addressController.text.trim(),
+        'medicalHistory': medicalHistoryController.text.trim(),
+        'currentMedications': currentMedicationsController.text.trim(),
+        'allergies': allergies.map((a) => {'allergyName': a}).toList(),
+      };
+
+      final updateUrl = 'http://10.0.2.2:8080/api/patient/auth/update';
+      final response = await widget.dio.post(updateUrl, data: payload);
+      
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final updatedData = {...widget.patientData, ...payload};
+        widget.onProfileUpdated(updatedData);
+        
+        if (mounted) {
+          Navigator.of(context).pop();
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Profile updated successfully')),
+          );
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Failed to update: ${response.statusCode}')),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => isSaving = false);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Edit Profile'),
+        backgroundColor: AppTheme.primaryBlue,
+        foregroundColor: AppTheme.white,
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          children: [
+            TextField(
+              controller: firstNameController,
+              decoration: const InputDecoration(
+                labelText: 'First Name',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const Gap(12),
+            TextField(
+              controller: lastNameController,
+              decoration: const InputDecoration(
+                labelText: 'Last Name',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const Gap(12),
+            TextField(
+              controller: ageController,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                labelText: 'Age',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const Gap(12),
+            TextField(
+              controller: genderController,
+              decoration: const InputDecoration(
+                labelText: 'Gender',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const Gap(12),
+            TextField(
+              controller: phoneController,
+              decoration: const InputDecoration(
+                labelText: 'Phone',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const Gap(12),
+            TextField(
+              controller: addressController,
+              decoration: const InputDecoration(
+                labelText: 'Address',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const Gap(12),
+            TextField(
+              controller: medicalHistoryController,
+              decoration: const InputDecoration(
+                labelText: 'Medical History',
+                border: OutlineInputBorder(),
+              ),
+              maxLines: 3,
+            ),
+            const Gap(12),
+            TextField(
+              controller: currentMedicationsController,
+              decoration: const InputDecoration(
+                labelText: 'Current Medications',
+                border: OutlineInputBorder(),
+              ),
+              maxLines: 2,
+            ),
+            const Gap(16),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                'Allergies',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            const Gap(8),
+            if (allergies.isNotEmpty)
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: allergies.map((a) => Chip(
+                  label: Text(a),
+                  deleteIcon: const Icon(Icons.close, size: 18),
+                  onDeleted: () {
+                    setState(() => allergies.remove(a));
+                  },
+                )).toList(),
+              ),
+            const Gap(8),
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: allergyInputController,
+                    decoration: const InputDecoration(
+                      hintText: 'Add allergy',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                ),
+                const Gap(8),
+                ElevatedButton(
+                  onPressed: () {
+                    final val = allergyInputController.text.trim();
+                    if (val.isNotEmpty) {
+                      setState(() {
+                        allergies.add(val);
+                        allergyInputController.clear();
+                      });
+                    }
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.primaryBlue,
+                    foregroundColor: AppTheme.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                  ),
+                  child: const Text('Add'),
+                ),
+              ],
+            ),
+            const Gap(24),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: isSaving ? null : () => Navigator.of(context).pop(),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                    ),
+                    child: const Text('Cancel'),
+                  ),
+                ),
+                const Gap(12),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: isSaving ? null : _saveProfile,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.primaryBlue,
+                      foregroundColor: AppTheme.white,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                    ),
+                    child: isSaving
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: AppTheme.white,
+                            ),
+                          )
+                        : const Text('Save'),
+                  ),
+                ),
+              ],
+            ),
+            const Gap(100),
           ],
         ),
       ),
