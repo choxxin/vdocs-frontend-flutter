@@ -1,13 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
-import 'package:dio_cookie_manager/dio_cookie_manager.dart';
-import 'package:cookie_jar/cookie_jar.dart';
 import 'package:iconsax/iconsax.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
 import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
 import '../core/theme/app_theme.dart';
 import '../core/widgets/custom_widgets.dart';
+import '../core/services/auth_service.dart';
 
 class PatientLoginPage extends StatefulWidget {
   @override
@@ -20,7 +18,7 @@ class _PatientLoginPageState extends State<PatientLoginPage> {
   final _passwordController = TextEditingController();
   final _otpController = TextEditingController();
   late final Dio _dio;
-  late final CookieJar _cookieJar;
+  final _authService = AuthService();
   String? _errorMessage;
   bool _isLoading = false;
   bool _obscurePassword = true;
@@ -31,18 +29,9 @@ class _PatientLoginPageState extends State<PatientLoginPage> {
     super.initState();
     _initializeDio();
   }
-
-  void _initializeDio() {
-    _dio = Dio();
-    
-    // For Android/iOS - use CookieManager to persist cookies
-    _cookieJar = CookieJar();
-    _dio.interceptors.add(CookieManager(_cookieJar));
-
-    // For web - enable credentials
-    if (kIsWeb) {
-      _dio.options.extra['withCredentials'] = true;
-    }
+  
+  void _initializeDio() async {
+    _dio = await _authService.getDio();
   }
 
   String? _validateEmail(String? value) {

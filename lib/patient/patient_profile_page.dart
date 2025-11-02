@@ -23,6 +23,8 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
   late TextEditingController _phoneController;
   late TextEditingController _addressController;
   late TextEditingController _medicalHistoryController;
+  late TextEditingController _currentMedController;
+  List<TextEditingController> _allergyControllers = [];
 
   @override
   void initState() {
@@ -36,6 +38,22 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
     _phoneController = TextEditingController(text: widget.patientData['phoneNumber']);
     _addressController = TextEditingController(text: widget.patientData['address']);
     _medicalHistoryController = TextEditingController(text: widget.patientData['medicalHistory'] ?? '');
+    _currentMedController = TextEditingController(text: widget.patientData['currentMedications'] ?? '');
+
+    // initialize allergy controllers from patientData (if available)
+    _allergyControllers.forEach((c) => c.dispose());
+    _allergyControllers = [];
+    final allergies = widget.patientData['allergies'];
+    if (allergies is List) {
+      for (var a in allergies) {
+        final name = (a is Map && a['allergyName'] != null) ? a['allergyName'].toString() : a.toString();
+        _allergyControllers.add(TextEditingController(text: name));
+      }
+    }
+    // Ensure at least one controller to allow adding
+    if (_allergyControllers.isEmpty) {
+      _allergyControllers.add(TextEditingController());
+    }
   }
 
   @override
@@ -256,6 +274,90 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
                     Iconsax.health,
                     maxLines: 3,
                   ),
+
+                  const SizedBox(height: 16),
+
+                  // Current Medications
+                  _buildInfoField(
+                    'Current Medications',
+                    _currentMedController,
+                    Iconsax.chart,
+                    maxLines: 2,
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  // Allergies
+                  const Text(
+                    'Allergies',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w500,
+                      color: Color(0xFF6C757D),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  if (!_isEditing)
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: _allergyControllers
+                          .where((c) => c.text.trim().isNotEmpty)
+                          .map((c) => Chip(
+                                label: Text(c.text),
+                                backgroundColor: const Color(0xFFF8D7DA),
+                              ))
+                          .toList(),
+                    )
+                  else
+                    Column(
+                      children: [
+                        for (var i = 0; i < _allergyControllers.length; i++)
+                          Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 6),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: TextFormField(
+                                    controller: _allergyControllers[i],
+                                    enabled: _isEditing,
+                                    decoration: InputDecoration(
+                                      hintText: 'Allergy name',
+                                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                                      filled: true,
+                                      fillColor: const Color(0xFFF8F9FA),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                IconButton(
+                                  onPressed: () {
+                                    setState(() {
+                                      _allergyControllers[i].dispose();
+                                      _allergyControllers.removeAt(i);
+                                      if (_allergyControllers.isEmpty) {
+                                        _allergyControllers.add(TextEditingController());
+                                      }
+                                    });
+                                  },
+                                  icon: const Icon(Iconsax.close_circle),
+                                ),
+                              ],
+                            ),
+                          ),
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: TextButton.icon(
+                            onPressed: () {
+                              setState(() {
+                                _allergyControllers.add(TextEditingController());
+                              });
+                            },
+                            icon: const Icon(Iconsax.add),
+                            label: const Text('Add Allergy'),
+                          ),
+                        ),
+                      ],
+                    ),
                 ],
               ),
             ),
@@ -398,15 +500,63 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
   }
 
   void _saveProfile() {
-    // TODO: Implement API call to update profile
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Profile updated successfully!'),
-        backgroundColor: Color(0xFF28A745),
-      ),
+    // gather payload
+    final payload = {
+      'firstName': _firstNameController.text.trim(),
+      'lastName': _lastNameController.text.trim(),
+      'age': widget.patientData['age'],
+      'gender': widget.patientData['gender'],
+      'phoneNumber': _phoneController.text.trim(),
+      'address': _addressController.text.trim(),
+      'medicalHistory': _medicalHistoryController.text.trim(),
+      'currentMedications': _currentMedController.text.trim(),
+      'allergies': _allergyControllers
+          .map((c) => c.text.trim())
+          .where((s) => s.isNotEmpty)
+          .map((s) => {'allergyName': s})
+          .toList(),
+    };
+
+    // perform API call
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
     );
-    setState(() {
-      _isEditing = false;
+
+    widget.dio
+        .post('/api/patient/auth/update', data: payload)
+        .then((response) {
+      Navigator.pop(context); // close progress
+      // merge response or assume success
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Profile updated successfully!'),
+          backgroundColor: Color(0xFF28A745),
+        ),
+      );
+      // update local patientData map so UI reflects saved values
+      setState(() {
+        widget.patientData['firstName'] = payload['firstName'];
+        widget.patientData['lastName'] = payload['lastName'];
+        widget.patientData['phoneNumber'] = payload['phoneNumber'];
+        widget.patientData['address'] = payload['address'];
+        widget.patientData['medicalHistory'] = payload['medicalHistory'];
+        widget.patientData['currentMedications'] = payload['currentMedications'];
+        widget.patientData['allergies'] = payload['allergies'];
+        _isEditing = false;
+      });
+    }).catchError((error) {
+      Navigator.pop(context); // close progress
+    final String message = (error is DioError && error.response?.data != null)
+      ? error.response?.data.toString() ?? 'Failed to update profile. Please try again.'
+      : 'Failed to update profile. Please try again.';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message),
+          backgroundColor: const Color(0xFFDC3545),
+        ),
+      );
     });
   }
 
@@ -455,6 +605,10 @@ class _PatientProfilePageState extends State<PatientProfilePage> {
     _phoneController.dispose();
     _addressController.dispose();
     _medicalHistoryController.dispose();
+    _currentMedController.dispose();
+    for (var c in _allergyControllers) {
+      c.dispose();
+    }
     super.dispose();
   }
 }

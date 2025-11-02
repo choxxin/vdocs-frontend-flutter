@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
 import '../Appointement/ClinicAppointmentsPage.dart';
+import '../core/services/auth_service.dart';
 
 class ClinicHomePage extends StatefulWidget {
   @override
@@ -20,10 +20,15 @@ class _ClinicHomePageState extends State<ClinicHomePage> {
     WidgetsBinding.instance.addPostFrameCallback((_) => _initializeDio());
   }
 
-  void _initializeDio() {
+  void _initializeDio() async {
     final Dio? passedDio = ModalRoute.of(context)?.settings.arguments as Dio?;
-    _dio = passedDio ??
-        Dio()..options.extra['withCredentials'] = kIsWeb ? true : null;
+    
+    if (passedDio != null) {
+      _dio = passedDio;
+    } else {
+      // Use the shared AuthService instance to maintain session
+      _dio = await AuthService().getDio();
+    }
 
     _fetchClinicData();
   }
@@ -91,7 +96,17 @@ class _ClinicHomePageState extends State<ClinicHomePage> {
           IconButton(icon: Icon(Icons.refresh), onPressed: _fetchClinicData),
           IconButton(
             icon: Icon(Icons.logout),
-            onPressed: () => Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false),
+            onPressed: () async {
+              // Clear session cookies
+              await AuthService().clearSession();
+              
+              if (!mounted) return;
+              Navigator.pushNamedAndRemoveUntil(
+                context,
+                '/login',
+                (route) => false, // Remove all previous routes
+              );
+            },
           ),
         ],
       ),

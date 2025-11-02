@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:google_fonts/google_fonts.dart';
 import 'package:iconsax/iconsax.dart';
+import '../core/services/auth_service.dart';
 
 class ClinicLoginPage extends StatefulWidget {
   @override
@@ -13,6 +13,7 @@ class _ClinicLoginPageState extends State<ClinicLoginPage> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   late final Dio _dio;
+  final _authService = AuthService();
   String? _errorMessage;
   bool _isLoading = false;
 
@@ -21,12 +22,9 @@ class _ClinicLoginPageState extends State<ClinicLoginPage> {
     super.initState();
     _initializeDio();
   }
-
-  void _initializeDio() {
-    _dio = Dio();
-    if (kIsWeb) {
-      _dio.options.extra['withCredentials'] = true;
-    }
+  
+  void _initializeDio() async {
+    _dio = await _authService.getDio();
   }
 
   Future<void> _login() async {

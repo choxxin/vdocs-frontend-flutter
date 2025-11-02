@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'core/theme/app_theme.dart';
 import 'core/services/terms_service.dart';
+import 'core/services/auth_service.dart';
 import 'core/screens/terms_and_conditions_page.dart';
 import 'login_page.dart';
 import 'clinic/clinic_login_page.dart';
@@ -50,24 +51,56 @@ class _SplashScreenState extends State<SplashScreen> {
   @override
   void initState() {
     super.initState();
-    _checkTermsAcceptance();
+    _checkInitialRoute();
   }
 
-  Future<void> _checkTermsAcceptance() async {
+  Future<void> _checkInitialRoute() async {
     // Small delay for smooth transition
     await Future.delayed(const Duration(milliseconds: 500));
     
+    // First check if user has accepted terms
     final hasAccepted = await TermsService.hasAcceptedTerms();
     
     if (!mounted) return;
     
-    if (hasAccepted) {
-      // User has accepted T&C, go to login page
-      Navigator.of(context).pushReplacementNamed('/login');
-    } else {
-      // User needs to accept T&C
+    if (!hasAccepted) {
+      // User needs to accept T&C first
       Navigator.of(context).pushReplacementNamed('/terms');
+      return;
     }
+    
+    // Terms accepted, now check for active session
+    final authService = AuthService();
+    
+    // Check patient session first
+    final patientData = await authService.checkPatientSession();
+    if (patientData != null) {
+      // Patient session is valid, go directly to patient home
+      if (!mounted) return;
+      final dio = await authService.getDio();
+      Navigator.of(context).pushReplacementNamed(
+        '/patient-home',
+        arguments: dio,
+      );
+      return;
+    }
+    
+    // Check clinic session
+    final clinicData = await authService.checkClinicSession();
+    if (clinicData != null) {
+      // Clinic session is valid, go directly to clinic home
+      if (!mounted) return;
+      final dio = await authService.getDio();
+      Navigator.of(context).pushReplacementNamed(
+        '/clinic-home',
+        arguments: dio,
+      );
+      return;
+    }
+    
+    // No active session, go to login page
+    if (!mounted) return;
+    Navigator.of(context).pushReplacementNamed('/login');
   }
 
   @override

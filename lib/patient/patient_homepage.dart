@@ -7,6 +7,7 @@ import 'package:gap/gap.dart';
 import 'dart:async';
 import '../core/theme/app_theme.dart';
 import '../core/widgets/custom_widgets.dart';
+import '../core/services/auth_service.dart';
 import './report_upload_page.dart';
 import '../Appointement/BookAppointmentPage.dart';
 import './Report_history_page.dart';
@@ -117,18 +118,15 @@ class _PatientHomePageState extends State<PatientHomePage> {
     });
   }
 
-  void _initializeDio() {
+  void _initializeDio() async {
     // Get the Dio instance passed from login page
     final Dio? passedDio = ModalRoute.of(context)?.settings.arguments as Dio?;
 
     if (passedDio != null) {
       _dio = passedDio;
     } else {
-      // Create a new Dio instance with web configuration
-      _dio = Dio();
-      if (kIsWeb) {
-        _dio.options.extra['withCredentials'] = true;
-      }
+      // Use the shared AuthService instance to maintain session
+      _dio = await AuthService().getDio();
     }
 
     _fetchPatientData();
@@ -842,6 +840,30 @@ class _PatientHomePageState extends State<PatientHomePage> {
                         const Gap(12),
                         _buildProfileRow('Medical History', _patientData!['medicalHistory'], Iconsax.health),
                       ],
+                      // Allergies
+                      if (_patientData!['allergies'] != null && (_patientData!['allergies'] is List) && (_patientData!['allergies'] as List).isNotEmpty) ...[
+                        const Gap(12),
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: (_patientData!['allergies'] as List).map<Widget>((a) {
+                              String name = '';
+                              try {
+                                if (a is Map && a.containsKey('allergyName')) name = a['allergyName']?.toString() ?? '';
+                                else name = a.toString();
+                              } catch (_) {}
+                              return Chip(label: Text(name));
+                            }).toList(),
+                          ),
+                        ),
+                      ],
+                      // Current medications
+                      if (_patientData!['currentMedications'] != null && _patientData!['currentMedications'].toString().isNotEmpty) ...[
+                        const Gap(12),
+                        _buildProfileRow('Current Medications', _patientData!['currentMedications'], Iconsax.health),
+                      ],
                     ],
                   ),
                 ),
@@ -853,8 +875,14 @@ class _PatientHomePageState extends State<PatientHomePage> {
                     Expanded(
                       child: ElevatedButton.icon(
                         onPressed: () {
+                          // Pop the current dialog first
                           Navigator.of(context).pop();
-                          // Navigate to edit profile page
+                          // Wait for dialog to fully close before showing edit dialog
+                          Future.delayed(const Duration(milliseconds: 100), () {
+                            if (mounted) {
+                              _showEditProfileDialog();
+                            }
+                          });
                         },
                         icon: const Icon(Iconsax.edit),
                         label: const Text('Edit Profile'),
@@ -892,6 +920,194 @@ class _PatientHomePageState extends State<PatientHomePage> {
         );
       },
     );
+  }
+
+  void _showEditProfileDialog() {
+    if (_patientData == null) return;
+    final parentContext = context; // capture parent context for SnackBars and Navigator actions
+
+    final TextEditingController firstNameController = TextEditingController(text: _patientData!['firstName']?.toString() ?? '');
+    final TextEditingController lastNameController = TextEditingController(text: _patientData!['lastName']?.toString() ?? '');
+    final TextEditingController ageController = TextEditingController(text: _patientData!['age']?.toString() ?? '');
+    final TextEditingController genderController = TextEditingController(text: _patientData!['gender']?.toString() ?? '');
+    final TextEditingController phoneController = TextEditingController(text: _patientData!['phoneNumber']?.toString() ?? '');
+    final TextEditingController addressController = TextEditingController(text: _patientData!['address']?.toString() ?? '');
+    final TextEditingController medicalHistoryController = TextEditingController(text: _patientData!['medicalHistory']?.toString() ?? '');
+    final TextEditingController currentMedicationsController = TextEditingController(text: _patientData!['currentMedications']?.toString() ?? '');
+    final TextEditingController allergyInputController = TextEditingController();
+
+    List<String> allergies = [];
+    try {
+      if (_patientData!['allergies'] != null) {
+        final raw = _patientData!['allergies'];
+        if (raw is List) {
+          allergies = raw.map((e) {
+            if (e is Map && e.containsKey('allergyName')) return e['allergyName']?.toString() ?? '';
+            return e.toString();
+          }).where((s) => s.isNotEmpty).toList();
+        }
+      }
+    } catch (_) {}
+
+
+    showDialog(
+      context: parentContext,
+      builder: (BuildContext dialogContext) {
+        bool isSaving = false;
+
+        return StatefulBuilder(
+          builder: (dialogContext, dialogSetState) {
+            Future<void> saveProfile() async {
+              // mark saving in dialog
+              dialogSetState(() => isSaving = true);
+              try {
+                final payload = {
+                  'firstName': firstNameController.text.trim(),
+                  'lastName': lastNameController.text.trim(),
+                  'age': int.tryParse(ageController.text.trim()) ?? _patientData!['age'],
+                  'gender': genderController.text.trim(),
+                  'phoneNumber': phoneController.text.trim(),
+                  'address': addressController.text.trim(),
+                  'medicalHistory': medicalHistoryController.text.trim(),
+                  'currentMedications': currentMedicationsController.text.trim(),
+                  'allergies': allergies.map((a) => {'allergyName': a}).toList(),
+                };
+
+                // Use same base host as fetch; when running on emulator use 10.0.2.2
+                final updateUrl = 'http://10.0.2.2:8080/api/patient/auth/update';
+
+                final response = await _dio.post(updateUrl, data: payload);
+                if (response.statusCode == 200 || response.statusCode == 201) {
+                  // Update outer state patient data
+                  if (mounted) {
+                    setState(() {
+                      _patientData = {
+                        ...?_patientData,
+                        ...payload,
+                      };
+                    });
+                  }
+
+                  // close dialog
+                  Navigator.of(dialogContext).pop();
+
+                  // show confirmation snackbar on parent scaffold
+                  if (mounted) {
+                    ScaffoldMessenger.of(parentContext).showSnackBar(
+                      const SnackBar(content: Text('Profile updated successfully')),
+                    );
+                  }
+                } else {
+                  // show error and allow retry
+                  dialogSetState(() => isSaving = false);
+                  if (mounted) ScaffoldMessenger.of(parentContext).showSnackBar(
+                    SnackBar(content: Text('Failed to update profile: ${response.statusCode}')),
+                  );
+                }
+              } catch (e) {
+                dialogSetState(() => isSaving = false);
+                if (mounted) ScaffoldMessenger.of(parentContext).showSnackBar(
+                  SnackBar(content: Text('Error updating profile: $e')),
+                );
+              }
+            }
+
+            return Dialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text('Edit Profile', style: Theme.of(dialogContext).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold)),
+                    const Gap(12),
+                    TextField(controller: firstNameController, decoration: const InputDecoration(labelText: 'First name')),
+                    const Gap(8),
+                    TextField(controller: lastNameController, decoration: const InputDecoration(labelText: 'Last name')),
+                    const Gap(8),
+                    TextField(controller: ageController, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Age')),
+                    const Gap(8),
+                    TextField(controller: genderController, decoration: const InputDecoration(labelText: 'Gender')),
+                    const Gap(8),
+                    TextField(controller: phoneController, decoration: const InputDecoration(labelText: 'Phone')),
+                    const Gap(8),
+                    TextField(controller: addressController, decoration: const InputDecoration(labelText: 'Address')),
+                    const Gap(8),
+                    TextField(controller: medicalHistoryController, decoration: const InputDecoration(labelText: 'Medical history')),
+                    const Gap(8),
+                    TextField(controller: currentMedicationsController, decoration: const InputDecoration(labelText: 'Current medications')),
+                    const Gap(12),
+                    // Allergies input
+                    Align(alignment: Alignment.centerLeft, child: Text('Allergies', style: Theme.of(dialogContext).textTheme.bodyMedium)),
+                    const Gap(8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: allergies.map((a) => Chip(
+                        label: Text(a),
+                        onDeleted: () {
+                          dialogSetState(() => allergies.remove(a));
+                        },
+                      )).toList(),
+                    ),
+                    const Gap(8),
+                    Row(
+                      children: [
+                        Expanded(child: TextField(controller: allergyInputController, decoration: const InputDecoration(hintText: 'Add allergy'))),
+                        const Gap(8),
+                        ElevatedButton(
+                          onPressed: () {
+                            final val = allergyInputController.text.trim();
+                            if (val.isNotEmpty) {
+                              dialogSetState(() {
+                                allergies.add(val);
+                                allergyInputController.clear();
+                              });
+                            }
+                          },
+                          child: const Text('Add'),
+                        ),
+                      ],
+                    ),
+                    const Gap(16),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: isSaving ? null : () {
+                              Navigator.of(dialogContext).pop();
+                            },
+                            child: const Text('Cancel'),
+                          ),
+                        ),
+                        const Gap(12),
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: isSaving ? null : saveProfile,
+                            child: isSaving ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)) : const Text('Save'),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    ).then((_) {
+      // dispose controllers when dialog closes
+      firstNameController.dispose();
+      lastNameController.dispose();
+      ageController.dispose();
+      genderController.dispose();
+      phoneController.dispose();
+      addressController.dispose();
+      medicalHistoryController.dispose();
+      currentMedicationsController.dispose();
+      allergyInputController.dispose();
+    });
   }
 
   Widget _buildProfileRow(String label, String value, IconData icon) {
@@ -959,9 +1175,16 @@ class _PatientHomePageState extends State<PatientHomePage> {
               child: Text('Cancel'),
             ),
             ElevatedButton(
-              onPressed: () {
+              onPressed: () async {
+                // Clear session cookies
+                await AuthService().clearSession();
+                
+                if (!mounted) return;
                 Navigator.of(context).pop();
-                Navigator.of(context).pushReplacementNamed('/login');
+                Navigator.of(context).pushNamedAndRemoveUntil(
+                  '/login',
+                  (route) => false, // Remove all previous routes
+                );
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppTheme.error,
@@ -1291,6 +1514,34 @@ class _PatientHomePageState extends State<PatientHomePage> {
                   const Gap(16),
                   _buildProfileRow('Medical History', _patientData!['medicalHistory'], Iconsax.health),
                 ],
+                // Allergies
+                if (_patientData!['allergies'] != null && (_patientData!['allergies'] is List) && (_patientData!['allergies'] as List).isNotEmpty) ...[
+                  const Gap(16),
+                  const Divider(),
+                  const Gap(16),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: (_patientData!['allergies'] as List).map<Widget>((a) {
+                        String name = '';
+                        try {
+                          if (a is Map && a.containsKey('allergyName')) name = a['allergyName']?.toString() ?? '';
+                          else name = a.toString();
+                        } catch (_) {}
+                        return Chip(label: Text(name));
+                      }).toList(),
+                    ),
+                  ),
+                ],
+                // Current medications
+                if (_patientData!['currentMedications'] != null && _patientData!['currentMedications'].toString().isNotEmpty) ...[
+                  const Gap(16),
+                  const Divider(),
+                  const Gap(16),
+                  _buildProfileRow('Current Medications', _patientData!['currentMedications'], Iconsax.health),
+                ],
               ],
             ),
           ),
@@ -1299,7 +1550,7 @@ class _PatientHomePageState extends State<PatientHomePage> {
           // Action Buttons
           ElevatedButton.icon(
             onPressed: () {
-              // Edit profile functionality
+              _showEditProfileDialog();
             },
             icon: const Icon(Iconsax.edit),
             label: const Text('Edit Profile'),
