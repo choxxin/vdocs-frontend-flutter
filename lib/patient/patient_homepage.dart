@@ -839,29 +839,66 @@ class _PatientHomePageState extends State<PatientHomePage> {
                         const Gap(12),
                         _buildProfileRow('Medical History', _patientData!['medicalHistory'], Iconsax.health),
                       ],
-                      // Allergies
-                      if (_patientData!['allergies'] != null && (_patientData!['allergies'] is List) && (_patientData!['allergies'] as List).isNotEmpty) ...[
-                        const Gap(12),
-                        Align(
-                          alignment: Alignment.centerLeft,
-                          child: Wrap(
-                            spacing: 8,
-                            runSpacing: 8,
-                            children: (_patientData!['allergies'] as List).map<Widget>((a) {
-                              String name = '';
-                              try {
-                                if (a is Map && a.containsKey('allergyName')) name = a['allergyName']?.toString() ?? '';
-                                else name = a.toString();
-                              } catch (_) {}
-                              return Chip(label: Text(name));
-                            }).toList(),
-                          ),
-                        ),
-                      ],
                       // Current medications
                       if (_patientData!['currentMedications'] != null && _patientData!['currentMedications'].toString().isNotEmpty) ...[
                         const Gap(12),
                         _buildProfileRow('Current Medications', _patientData!['currentMedications'], Iconsax.health),
+                      ],
+                      // Allergies Section
+                      if (_patientData!['allergies'] != null && (_patientData!['allergies'] is List) && (_patientData!['allergies'] as List).isNotEmpty) ...[
+                        const Gap(12),
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: AppTheme.primaryBlue.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Icon(
+                                Iconsax.health,
+                                size: 16,
+                                color: AppTheme.primaryBlue,
+                              ),
+                            ),
+                            const Gap(12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Allergies',
+                                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                      color: AppTheme.textLight,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                  const Gap(8),
+                                  Wrap(
+                                    spacing: 8,
+                                    runSpacing: 8,
+                                    children: (_patientData!['allergies'] as List).map<Widget>((a) {
+                                      String name = '';
+                                      try {
+                                        if (a is Map && a.containsKey('allergyName')) name = a['allergyName']?.toString() ?? '';
+                                        else name = a.toString();
+                                      } catch (_) {}
+                                      return Chip(
+                                        label: Text(name),
+                                        backgroundColor: AppTheme.error.withOpacity(0.1),
+                                        labelStyle: TextStyle(
+                                          color: AppTheme.error,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      );
+                                    }).toList(),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
                       ],
                     ],
                   ),
@@ -1343,25 +1380,62 @@ class _PatientHomePageState extends State<PatientHomePage> {
                   const Gap(16),
                   _buildProfileRow('Medical History', _patientData!['medicalHistory'], Iconsax.health),
                 ],
-                // Allergies
+                // Allergies Section
                 if (_patientData!['allergies'] != null && (_patientData!['allergies'] is List) && (_patientData!['allergies'] as List).isNotEmpty) ...[
                   const Gap(16),
                   const Divider(),
                   const Gap(16),
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: (_patientData!['allergies'] as List).map<Widget>((a) {
-                        String name = '';
-                        try {
-                          if (a is Map && a.containsKey('allergyName')) name = a['allergyName']?.toString() ?? '';
-                          else name = a.toString();
-                        } catch (_) {}
-                        return Chip(label: Text(name));
-                      }).toList(),
-                    ),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: AppTheme.primaryBlue.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Icon(
+                          Iconsax.health,
+                          size: 16,
+                          color: AppTheme.primaryBlue,
+                        ),
+                      ),
+                      const Gap(12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Allergies',
+                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                color: AppTheme.textLight,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            const Gap(8),
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              children: (_patientData!['allergies'] as List).map<Widget>((a) {
+                                String name = '';
+                                try {
+                                  if (a is Map && a.containsKey('allergyName')) name = a['allergyName']?.toString() ?? '';
+                                  else name = a.toString();
+                                } catch (_) {}
+                                return Chip(
+                                  label: Text(name),
+                                  backgroundColor: AppTheme.error.withOpacity(0.1),
+                                  labelStyle: TextStyle(
+                                    color: AppTheme.error,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                );
+                              }).toList(),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
                 ],
                 // Current medications
@@ -1706,59 +1780,112 @@ class _EditProfileScreenState extends State<_EditProfileScreen> {
               maxLines: 2,
             ),
             const Gap(16),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                'Allergies',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
+            // Allergies Section
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: AppTheme.primaryBlue.withOpacity(0.05),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: AppTheme.primaryBlue.withOpacity(0.2),
+                  width: 1,
                 ),
               ),
-            ),
-            const Gap(8),
-            if (allergies.isNotEmpty)
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: allergies.map((a) => Chip(
-                  label: Text(a),
-                  deleteIcon: const Icon(Icons.close, size: 18),
-                  onDeleted: () {
-                    setState(() => allergies.remove(a));
-                  },
-                )).toList(),
-              ),
-            const Gap(8),
-            Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: allergyInputController,
-                    decoration: const InputDecoration(
-                      hintText: 'Add allergy',
-                      border: OutlineInputBorder(),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        Iconsax.health,
+                        color: AppTheme.primaryBlue,
+                        size: 20,
+                      ),
+                      const Gap(8),
+                      Text(
+                        'Allergies',
+                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: AppTheme.primaryBlue,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const Gap(12),
+                  if (allergies.isNotEmpty) ...[
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: allergies.map((a) => Chip(
+                        label: Text(a),
+                        backgroundColor: AppTheme.primaryBlue.withOpacity(0.1),
+                        deleteIcon: const Icon(Icons.close, size: 18),
+                        deleteIconColor: AppTheme.error,
+                        onDeleted: () {
+                          setState(() => allergies.remove(a));
+                        },
+                      )).toList(),
                     ),
+                    const Gap(12),
+                  ],
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: allergyInputController,
+                          decoration: InputDecoration(
+                            labelText: 'Add allergy',
+                            hintText: 'e.g., Peanuts, Penicillin',
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              borderSide: BorderSide(
+                                color: AppTheme.primaryBlue,
+                                width: 2,
+                              ),
+                            ),
+                            prefixIcon: Icon(
+                              Iconsax.add_circle,
+                              color: AppTheme.primaryBlue,
+                            ),
+                          ),
+                          onSubmitted: (val) {
+                            if (val.trim().isNotEmpty) {
+                              setState(() {
+                                allergies.add(val.trim());
+                                allergyInputController.clear();
+                              });
+                            }
+                          },
+                        ),
+                      ),
+                      const Gap(8),
+                      ElevatedButton(
+                        onPressed: () {
+                          final val = allergyInputController.text.trim();
+                          if (val.isNotEmpty) {
+                            setState(() {
+                              allergies.add(val);
+                              allergyInputController.clear();
+                            });
+                          }
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppTheme.primaryBlue,
+                          foregroundColor: AppTheme.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                        child: const Text('Add'),
+                      ),
+                    ],
                   ),
-                ),
-                const Gap(8),
-                ElevatedButton(
-                  onPressed: () {
-                    final val = allergyInputController.text.trim();
-                    if (val.isNotEmpty) {
-                      setState(() {
-                        allergies.add(val);
-                        allergyInputController.clear();
-                      });
-                    }
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.primaryBlue,
-                    foregroundColor: AppTheme.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                  ),
-                  child: const Text('Add'),
-                ),
-              ],
+                ],
+              ),
             ),
             const Gap(24),
             Row(
