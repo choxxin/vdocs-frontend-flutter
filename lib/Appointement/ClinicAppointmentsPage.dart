@@ -66,7 +66,7 @@ class _ClinicAppointmentsPageState extends State<ClinicAppointmentsPage>
       });
 
       final response = await widget.dio.get(
-        "http://localhost:8080/api/clinic/appointments/all",
+        "http://10.0.2.2:8080/api/clinic/appointments/all",
       );
 
       if (!mounted) return;

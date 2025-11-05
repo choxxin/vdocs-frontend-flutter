@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:iconsax/iconsax.dart';
 import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
 import 'package:gap/gap.dart';
 import 'dart:async';
 import '../core/theme/app_theme.dart';
 import '../core/widgets/custom_widgets.dart';
+import '../core/services/auth_service.dart';
 import './report_upload_page.dart';
 import '../Appointement/BookAppointmentPage.dart';
 import './Report_history_page.dart';
@@ -117,18 +117,15 @@ class _PatientHomePageState extends State<PatientHomePage> {
     });
   }
 
-  void _initializeDio() {
+  void _initializeDio() async {
     // Get the Dio instance passed from login page
     final Dio? passedDio = ModalRoute.of(context)?.settings.arguments as Dio?;
 
     if (passedDio != null) {
       _dio = passedDio;
     } else {
-      // Create a new Dio instance with web configuration
-      _dio = Dio();
-      if (kIsWeb) {
-        _dio.options.extra['withCredentials'] = true;
-      }
+      // Use the shared AuthService instance to maintain session
+      _dio = await AuthService().getDio();
     }
 
     _fetchPatientData();
@@ -142,7 +139,7 @@ class _PatientHomePageState extends State<PatientHomePage> {
       });
 
       final response = await _dio.get(
-        "http://localhost:8080/api/patient/auth/me",
+        "http://10.0.2.2:8080/api/patient/auth/me",
       );
 
       if (response.statusCode == 200) {
@@ -239,17 +236,50 @@ class _PatientHomePageState extends State<PatientHomePage> {
             children: [
               GestureDetector(
                 onTap: () => _showProfileDialog(),
-                child: CircleAvatar(
-                  radius: 30,
-                  backgroundColor: AppTheme.white.withOpacity(0.2),
-                  backgroundImage: const NetworkImage(
-                    'https://images.unsplash.com/photo-1494790108755-2616b69ee45c?w=150&h=150&fit=crop&crop=face', // Default girl avatar
+                child: Container(
+                  width: 60,
+                  height: 60,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: AppTheme.white,
+                    border: Border.all(color: AppTheme.white, width: 2),
                   ),
-                  onBackgroundImageError: (_, __) {},
-                  child: Container(
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(color: AppTheme.white, width: 2),
+                  child: ClipOval(
+                    child: Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        // Background
+                        Container(
+                          color: AppTheme.white,
+                        ),
+                        // Head (circle)
+                        Positioned(
+                          top: 12,
+                          child: Container(
+                            width: 20,
+                            height: 20,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: AppTheme.primaryBlue.withOpacity(0.7),
+                            ),
+                          ),
+                        ),
+                        // Shoulders (semi-circle)
+                        Positioned(
+                          bottom: 0,
+                          child: Container(
+                            width: 50,
+                            height: 35,
+                            decoration: BoxDecoration(
+                              color: AppTheme.primaryBlue.withOpacity(0.7),
+                              borderRadius: const BorderRadius.only(
+                                topLeft: Radius.circular(50),
+                                topRight: Radius.circular(50),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
@@ -720,17 +750,50 @@ class _PatientHomePageState extends State<PatientHomePage> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 // Profile Avatar
-                CircleAvatar(
-                  radius: 50,
-                  backgroundColor: AppTheme.primaryBlue.withOpacity(0.1),
-                  backgroundImage: const NetworkImage(
-                    'https://images.unsplash.com/photo-1494790108755-2616b69ee45c?w=150&h=150&fit=crop&crop=face',
+                Container(
+                  width: 100,
+                  height: 100,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: AppTheme.primaryBlue.withOpacity(0.1),
+                    border: Border.all(color: AppTheme.primaryBlue, width: 3),
                   ),
-                  onBackgroundImageError: (_, __) {},
-                  child: Container(
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(color: AppTheme.primaryBlue, width: 3),
+                  child: ClipOval(
+                    child: Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        // Background
+                        Container(
+                          color: AppTheme.primaryBlue.withOpacity(0.1),
+                        ),
+                        // Head (circle)
+                        Positioned(
+                          top: 20,
+                          child: Container(
+                            width: 35,
+                            height: 35,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: AppTheme.primaryBlue.withOpacity(0.7),
+                            ),
+                          ),
+                        ),
+                        // Shoulders (semi-circle)
+                        Positioned(
+                          bottom: 0,
+                          child: Container(
+                            width: 80,
+                            height: 55,
+                            decoration: BoxDecoration(
+                              color: AppTheme.primaryBlue.withOpacity(0.7),
+                              borderRadius: const BorderRadius.only(
+                                topLeft: Radius.circular(80),
+                                topRight: Radius.circular(80),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
@@ -776,6 +839,67 @@ class _PatientHomePageState extends State<PatientHomePage> {
                         const Gap(12),
                         _buildProfileRow('Medical History', _patientData!['medicalHistory'], Iconsax.health),
                       ],
+                      // Current medications
+                      if (_patientData!['currentMedications'] != null && _patientData!['currentMedications'].toString().isNotEmpty) ...[
+                        const Gap(12),
+                        _buildProfileRow('Current Medications', _patientData!['currentMedications'], Iconsax.health),
+                      ],
+                      // Allergies Section
+                      if (_patientData!['allergies'] != null && (_patientData!['allergies'] is List) && (_patientData!['allergies'] as List).isNotEmpty) ...[
+                        const Gap(12),
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: AppTheme.primaryBlue.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Icon(
+                                Iconsax.health,
+                                size: 16,
+                                color: AppTheme.primaryBlue,
+                              ),
+                            ),
+                            const Gap(12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Allergies',
+                                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                      color: AppTheme.textLight,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                  const Gap(8),
+                                  Wrap(
+                                    spacing: 8,
+                                    runSpacing: 8,
+                                    children: (_patientData!['allergies'] as List).map<Widget>((a) {
+                                      String name = '';
+                                      try {
+                                        if (a is Map && a.containsKey('allergyName')) name = a['allergyName']?.toString() ?? '';
+                                        else name = a.toString();
+                                      } catch (_) {}
+                                      return Chip(
+                                        label: Text(name),
+                                        backgroundColor: AppTheme.error.withOpacity(0.1),
+                                        labelStyle: TextStyle(
+                                          color: AppTheme.error,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      );
+                                    }).toList(),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
                     ],
                   ),
                 ),
@@ -787,8 +911,14 @@ class _PatientHomePageState extends State<PatientHomePage> {
                     Expanded(
                       child: ElevatedButton.icon(
                         onPressed: () {
+                          // Pop the current dialog first
                           Navigator.of(context).pop();
-                          // Navigate to edit profile page
+                          // Wait for dialog to fully close before showing edit dialog
+                          Future.delayed(const Duration(milliseconds: 100), () {
+                            if (mounted) {
+                              _showEditProfileDialog();
+                            }
+                          });
                         },
                         icon: const Icon(Iconsax.edit),
                         label: const Text('Edit Profile'),
@@ -825,6 +955,24 @@ class _PatientHomePageState extends State<PatientHomePage> {
           ),
         );
       },
+    );
+  }
+
+  void _showEditProfileDialog() {
+    if (_patientData == null) return;
+
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => _EditProfileScreen(
+          dio: _dio,
+          patientData: _patientData!,
+          onProfileUpdated: (updatedData) {
+            setState(() {
+              _patientData = updatedData;
+            });
+          },
+        ),
+      ),
     );
   }
 
@@ -893,9 +1041,16 @@ class _PatientHomePageState extends State<PatientHomePage> {
               child: Text('Cancel'),
             ),
             ElevatedButton(
-              onPressed: () {
+              onPressed: () async {
+                // Clear session cookies
+                await AuthService().clearSession();
+                
+                if (!mounted) return;
                 Navigator.of(context).pop();
-                Navigator.of(context).pushReplacementNamed('/login');
+                Navigator.of(context).pushNamedAndRemoveUntil(
+                  '/login',
+                  (route) => false, // Remove all previous routes
+                );
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppTheme.error,
@@ -1120,17 +1275,50 @@ class _PatientHomePageState extends State<PatientHomePage> {
             ),
             child: Column(
               children: [
-                CircleAvatar(
-                  radius: 50,
-                  backgroundColor: AppTheme.white.withOpacity(0.2),
-                  backgroundImage: const NetworkImage(
-                    'https://images.unsplash.com/photo-1494790108755-2616b69ee45c?w=150&h=150&fit=crop&crop=face',
+                Container(
+                  width: 100,
+                  height: 100,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: AppTheme.white.withOpacity(0.2),
+                    border: Border.all(color: AppTheme.white, width: 3),
                   ),
-                  onBackgroundImageError: (_, __) {},
-                  child: Container(
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(color: AppTheme.white, width: 3),
+                  child: ClipOval(
+                    child: Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        // Background
+                        Container(
+                          color: AppTheme.white.withOpacity(0.2),
+                        ),
+                        // Head (circle)
+                        Positioned(
+                          top: 20,
+                          child: Container(
+                            width: 35,
+                            height: 35,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: AppTheme.white.withOpacity(0.8),
+                            ),
+                          ),
+                        ),
+                        // Shoulders (semi-circle)
+                        Positioned(
+                          bottom: 0,
+                          child: Container(
+                            width: 80,
+                            height: 55,
+                            decoration: BoxDecoration(
+                              color: AppTheme.white.withOpacity(0.8),
+                              borderRadius: const BorderRadius.only(
+                                topLeft: Radius.circular(80),
+                                topRight: Radius.circular(80),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
@@ -1192,6 +1380,71 @@ class _PatientHomePageState extends State<PatientHomePage> {
                   const Gap(16),
                   _buildProfileRow('Medical History', _patientData!['medicalHistory'], Iconsax.health),
                 ],
+                // Allergies Section
+                if (_patientData!['allergies'] != null && (_patientData!['allergies'] is List) && (_patientData!['allergies'] as List).isNotEmpty) ...[
+                  const Gap(16),
+                  const Divider(),
+                  const Gap(16),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: AppTheme.primaryBlue.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Icon(
+                          Iconsax.health,
+                          size: 16,
+                          color: AppTheme.primaryBlue,
+                        ),
+                      ),
+                      const Gap(12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Allergies',
+                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                color: AppTheme.textLight,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            const Gap(8),
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              children: (_patientData!['allergies'] as List).map<Widget>((a) {
+                                String name = '';
+                                try {
+                                  if (a is Map && a.containsKey('allergyName')) name = a['allergyName']?.toString() ?? '';
+                                  else name = a.toString();
+                                } catch (_) {}
+                                return Chip(
+                                  label: Text(name),
+                                  backgroundColor: AppTheme.error.withOpacity(0.1),
+                                  labelStyle: TextStyle(
+                                    color: AppTheme.error,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                );
+                              }).toList(),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+                // Current medications
+                if (_patientData!['currentMedications'] != null && _patientData!['currentMedications'].toString().isNotEmpty) ...[
+                  const Gap(16),
+                  const Divider(),
+                  const Gap(16),
+                  _buildProfileRow('Current Medications', _patientData!['currentMedications'], Iconsax.health),
+                ],
               ],
             ),
           ),
@@ -1200,7 +1453,7 @@ class _PatientHomePageState extends State<PatientHomePage> {
           // Action Buttons
           ElevatedButton.icon(
             onPressed: () {
-              // Edit profile functionality
+              _showEditProfileDialog();
             },
             icon: const Icon(Iconsax.edit),
             label: const Text('Edit Profile'),
@@ -1320,6 +1573,356 @@ class _PatientHomePageState extends State<PatientHomePage> {
                 fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
               ),
             ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// Simplified Edit Profile Screen as a separate widget
+class _EditProfileScreen extends StatefulWidget {
+  final Dio dio;
+  final Map<String, dynamic> patientData;
+  final Function(Map<String, dynamic>) onProfileUpdated;
+
+  const _EditProfileScreen({
+    required this.dio,
+    required this.patientData,
+    required this.onProfileUpdated,
+  });
+
+  @override
+  State<_EditProfileScreen> createState() => _EditProfileScreenState();
+}
+
+class _EditProfileScreenState extends State<_EditProfileScreen> {
+  late TextEditingController firstNameController;
+  late TextEditingController lastNameController;
+  late TextEditingController ageController;
+  late TextEditingController genderController;
+  late TextEditingController phoneController;
+  late TextEditingController addressController;
+  late TextEditingController medicalHistoryController;
+  late TextEditingController currentMedicationsController;
+  late TextEditingController allergyInputController;
+  
+  List<String> allergies = [];
+  bool isSaving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    
+    firstNameController = TextEditingController(text: widget.patientData['firstName']?.toString() ?? '');
+    lastNameController = TextEditingController(text: widget.patientData['lastName']?.toString() ?? '');
+    ageController = TextEditingController(text: widget.patientData['age']?.toString() ?? '');
+    genderController = TextEditingController(text: widget.patientData['gender']?.toString() ?? '');
+    phoneController = TextEditingController(text: widget.patientData['phoneNumber']?.toString() ?? '');
+    addressController = TextEditingController(text: widget.patientData['address']?.toString() ?? '');
+    medicalHistoryController = TextEditingController(text: widget.patientData['medicalHistory']?.toString() ?? '');
+    currentMedicationsController = TextEditingController(text: widget.patientData['currentMedications']?.toString() ?? '');
+    allergyInputController = TextEditingController();
+    
+    // Parse allergies
+    try {
+      if (widget.patientData['allergies'] != null) {
+        final raw = widget.patientData['allergies'];
+        if (raw is List) {
+          allergies = raw.map((e) {
+            if (e is Map && e.containsKey('allergyName')) return e['allergyName']?.toString() ?? '';
+            return e.toString();
+          }).where((s) => s.isNotEmpty).toList();
+        }
+      }
+    } catch (_) {}
+  }
+
+  @override
+  void dispose() {
+    firstNameController.dispose();
+    lastNameController.dispose();
+    ageController.dispose();
+    genderController.dispose();
+    phoneController.dispose();
+    addressController.dispose();
+    medicalHistoryController.dispose();
+    currentMedicationsController.dispose();
+    allergyInputController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _saveProfile() async {
+    setState(() => isSaving = true);
+    
+    try {
+      final payload = {
+        'firstName': firstNameController.text.trim(),
+        'lastName': lastNameController.text.trim(),
+        'age': int.tryParse(ageController.text.trim()) ?? widget.patientData['age'],
+        'gender': genderController.text.trim(),
+        'phoneNumber': phoneController.text.trim(),
+        'address': addressController.text.trim(),
+        'medicalHistory': medicalHistoryController.text.trim(),
+        'currentMedications': currentMedicationsController.text.trim(),
+        'allergies': allergies.map((a) => {'allergyName': a}).toList(),
+      };
+
+      final updateUrl = 'http://10.0.2.2:8080/api/patient/auth/update';
+      final response = await widget.dio.post(updateUrl, data: payload);
+      
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final updatedData = {...widget.patientData, ...payload};
+        widget.onProfileUpdated(updatedData);
+        
+        if (mounted) {
+          Navigator.of(context).pop();
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Profile updated successfully')),
+          );
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Failed to update: ${response.statusCode}')),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => isSaving = false);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Edit Profile'),
+        backgroundColor: AppTheme.primaryBlue,
+        foregroundColor: AppTheme.white,
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          children: [
+            TextField(
+              controller: firstNameController,
+              decoration: const InputDecoration(
+                labelText: 'First Name',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const Gap(12),
+            TextField(
+              controller: lastNameController,
+              decoration: const InputDecoration(
+                labelText: 'Last Name',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const Gap(12),
+            TextField(
+              controller: ageController,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                labelText: 'Age',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const Gap(12),
+            TextField(
+              controller: genderController,
+              decoration: const InputDecoration(
+                labelText: 'Gender',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const Gap(12),
+            TextField(
+              controller: phoneController,
+              decoration: const InputDecoration(
+                labelText: 'Phone',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const Gap(12),
+            TextField(
+              controller: addressController,
+              decoration: const InputDecoration(
+                labelText: 'Address',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const Gap(12),
+            TextField(
+              controller: medicalHistoryController,
+              decoration: const InputDecoration(
+                labelText: 'Medical History',
+                border: OutlineInputBorder(),
+              ),
+              maxLines: 3,
+            ),
+            const Gap(12),
+            TextField(
+              controller: currentMedicationsController,
+              decoration: const InputDecoration(
+                labelText: 'Current Medications',
+                border: OutlineInputBorder(),
+              ),
+              maxLines: 2,
+            ),
+            const Gap(16),
+            // Allergies Section
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: AppTheme.primaryBlue.withOpacity(0.05),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: AppTheme.primaryBlue.withOpacity(0.2),
+                  width: 1,
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        Iconsax.health,
+                        color: AppTheme.primaryBlue,
+                        size: 20,
+                      ),
+                      const Gap(8),
+                      Text(
+                        'Allergies',
+                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: AppTheme.primaryBlue,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const Gap(12),
+                  if (allergies.isNotEmpty) ...[
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: allergies.map((a) => Chip(
+                        label: Text(a),
+                        backgroundColor: AppTheme.primaryBlue.withOpacity(0.1),
+                        deleteIcon: const Icon(Icons.close, size: 18),
+                        deleteIconColor: AppTheme.error,
+                        onDeleted: () {
+                          setState(() => allergies.remove(a));
+                        },
+                      )).toList(),
+                    ),
+                    const Gap(12),
+                  ],
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: allergyInputController,
+                          decoration: InputDecoration(
+                            labelText: 'Add allergy',
+                            hintText: 'e.g., Peanuts, Penicillin',
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              borderSide: BorderSide(
+                                color: AppTheme.primaryBlue,
+                                width: 2,
+                              ),
+                            ),
+                            prefixIcon: Icon(
+                              Iconsax.add_circle,
+                              color: AppTheme.primaryBlue,
+                            ),
+                          ),
+                          onSubmitted: (val) {
+                            if (val.trim().isNotEmpty) {
+                              setState(() {
+                                allergies.add(val.trim());
+                                allergyInputController.clear();
+                              });
+                            }
+                          },
+                        ),
+                      ),
+                      const Gap(8),
+                      ElevatedButton(
+                        onPressed: () {
+                          final val = allergyInputController.text.trim();
+                          if (val.isNotEmpty) {
+                            setState(() {
+                              allergies.add(val);
+                              allergyInputController.clear();
+                            });
+                          }
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppTheme.primaryBlue,
+                          foregroundColor: AppTheme.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                        child: const Text('Add'),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const Gap(24),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: isSaving ? null : () => Navigator.of(context).pop(),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                    ),
+                    child: const Text('Cancel'),
+                  ),
+                ),
+                const Gap(12),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: isSaving ? null : _saveProfile,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.primaryBlue,
+                      foregroundColor: AppTheme.white,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                    ),
+                    child: isSaving
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: AppTheme.white,
+                            ),
+                          )
+                        : const Text('Save'),
+                  ),
+                ),
+              ],
+            ),
+            const Gap(100),
           ],
         ),
       ),

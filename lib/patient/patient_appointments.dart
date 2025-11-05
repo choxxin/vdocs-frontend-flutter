@@ -36,7 +36,7 @@ class _PatientAppointmentPageState extends State<PatientAppointmentPage> {
 
     try {
       final response = await widget.dio.get(
-        "http://localhost:8080/api/clinic/appointments/patient/${widget.patientId}",
+        "http://10.0.2.2:8080/api/clinic/appointments/patient/${widget.patientId}",
       );
 
       if (response.statusCode == 200) {

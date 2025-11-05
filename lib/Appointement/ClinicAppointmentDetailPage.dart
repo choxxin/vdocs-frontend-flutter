@@ -38,7 +38,7 @@ class _ClinicAppointmentDetailPageState
   Future<void> fetchAppointmentDetail() async {
     try {
       final response = await widget.dio.get(
-        "http://localhost:8080/api/clinic/appointments/${widget.appointmentId}",
+        "http://10.0.2.2:8080/api/clinic/appointments/${widget.appointmentId}",
       );
 
       if (!mounted) return;
@@ -81,7 +81,7 @@ class _ClinicAppointmentDetailPageState
 
         // Upload to server
         final response = await widget.dio.post(
-          "http://localhost:8080/api/clinic/appointments/upload-report/${widget.appointmentId}",
+          "http://10.0.2.2:8080/api/clinic/appointments/upload-report/${widget.appointmentId}",
           data: formData,
         );
 
@@ -135,7 +135,7 @@ class _ClinicAppointmentDetailPageState
 
     try {
       await widget.dio.post(
-        "http://localhost:8080/api/clinic/appointments/update/${widget.appointmentId}",
+        "http://10.0.2.2:8080/api/clinic/appointments/update/${widget.appointmentId}",
         data: body,
       );
 
